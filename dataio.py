@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function
 import numpy as np
 import pandas as pd
 
@@ -40,7 +41,7 @@ class ShuffleIterator(object):
 class OneEpochIterator(ShuffleIterator):
 
     def __init__(self, inputs, batch_size=10):
-        super().__init__(inputs, batch_size=batch_size)
+        super(OneEpochIterator, self).__init__(inputs, batch_size=batch_size)
         self.idx_group = np.array_split(np.arange(self.len), np.ceil(self.len / batch_size))
         self.group_id = 0
 
