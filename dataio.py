@@ -1,7 +1,5 @@
 import numpy as np
 import pandas as pd
-import threading
-from queue import Queue
 
 
 def read_process(filname, sep="\t"):
@@ -54,31 +52,3 @@ class OneEpochIterator(ShuffleIterator):
         self.group_id += 1
         return [out[:, i] for i in range(self.num_cols)]
 
-
-class BackgroundGenerator(threading.Thread):
-
-    DONE = object()
-
-    def __init__(self, generator):
-        threading.Thread.__init__(self)
-        self.queue = Queue(100)
-        self.generator = generator
-        self.daemon = True
-        self.start()
-
-    def run(self):
-        for item in self.generator:
-            self.queue.put(item)
-        self.queue.put(BackgroundGenerator.DONE)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self.next()
-
-    def next(self):
-        next_item = self.queue.get()
-        if next_item is BackgroundGenerator.DONE:
-            raise StopIteration
-        return next_item
