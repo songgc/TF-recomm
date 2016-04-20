@@ -9,12 +9,10 @@ import ops
 np.random.seed(13575)
 
 BATCH_SIZE = 1000
-# USER_NUM = 943
 USER_NUM = 6040
-# ITEM_NUM = 1682
 ITEM_NUM = 3952
 DIM = 15
-EPOCH_MAX = 300
+EPOCH_MAX = 100
 DEVICE = "/cpu:0"
 
 
