@@ -7,7 +7,7 @@ Factorization models are very popular in recommendation systems because they can
 * Multi-thread acceleration
 * Vectorization acceleration
 
-[Tensorflow](https://www.tensorflow.org/) is a general computation framework using data flow graphs although deep learning is the most important application of it. With Tensorflow, derivative calculation can be done by auto differentiation, which means that you only need to write the inference part. It provides variant fancy SGD learning algorithms, CPU/GPU acceleration, and distributed training in a computer cluster. Since Tensorflow has some embedding modules for word2vc like application, it is supposed to be a good platform for factorization models as well, even in production. Please note that embedding in deep learning is equivalent to factorization in shallow learning! 
+[Tensorflow](https://www.tensorflow.org/) is a general computation framework using data flow graphs although deep learning is the most important application of it. With Tensorflow, derivative calculation can be done by auto differentiation, which means that you only need to write the inference part. It provides variant fancy SGD learning algorithms, CPU/GPU acceleration, and distributed training in a computer cluster. Since Tensorflow has some embedding modules for word2vc-like application, it is supposed to be a good platform for factorization models as well, even in production. Please note that embedding in deep learning is equivalent to factorization in shallow learning! 
 
 
 ### Data set
@@ -26,11 +26,11 @@ The problem is to predict the rating given by user u and item i. The metric is t
 #### Graph
 Given by user u and item i, the inference of the classic SVD is 
 ```
-y_pred[i, u] = global__bias + bias_user[u] + bias_item_[i] + <embedding_user[u], embedding_item[i]>
+y_pred[u, i] = global__bias + bias_user[u] + bias_item_[i] + <embedding_user[u], embedding_item[i]>
 ```
 The objective is to minimize
 ```
-\sum_{u, i}_|y_pred[u, i] - y_true[u, i]|^2 + \lambda(|embedding_user[u]|^2 + |embedding_item[i]|^2)
+\sum_{u, i} |y_pred[u, i] - y_true[u, i]|^2 + \lambda(|embedding_user[u]|^2 + |embedding_item[i]|^2)
 ```
 The above can be directly written by Tensorflow DSL as the [operations](https://github.com/songgc/TF-recomm/blob/master/ops.py). [FTRL-Proximal](http://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/41159.pdf) is used for the optimizer. The TF graph would be like
 ![](doc/graph_svd.png)
@@ -57,6 +57,8 @@ epoch train_error val_error elapsed_time
 To enable GPU for math operations, just set DEVICE="/gpu:0". The computation time of one epoch reduced from 4.1 to 3.4s.
 
 Changing the batch size from 1000 to 10000. One epoch only requires 1.1s.
+
+If you have large data, it is better to use TF [data pipeline](https://www.tensorflow.org/versions/r0.8/how_tos/reading_data/index.html).
 
 ### Others:
 SVD++ will be provided soon.

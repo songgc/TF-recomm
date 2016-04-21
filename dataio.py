@@ -15,7 +15,9 @@ def read_process(filname, sep="\t"):
 
 
 class ShuffleIterator(object):
-
+    """
+    Randomly generate batches
+    """
     def __init__(self, inputs, batch_size=10):
         self.inputs = inputs
         self.batch_size = batch_size
@@ -39,10 +41,15 @@ class ShuffleIterator(object):
 
 
 class OneEpochIterator(ShuffleIterator):
-
+    """
+    Sequentially generate one-epoch batches, typically for test data
+    """
     def __init__(self, inputs, batch_size=10):
         super(OneEpochIterator, self).__init__(inputs, batch_size=batch_size)
-        self.idx_group = np.array_split(np.arange(self.len), np.ceil(self.len / batch_size))
+        if batch_size > 0:
+            self.idx_group = np.array_split(np.arange(self.len), np.ceil(self.len / batch_size))
+        else:
+            self.idx_group = [np.arange(self.len)]
         self.group_id = 0
 
     def next(self):
