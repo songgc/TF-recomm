@@ -41,7 +41,7 @@ def svd(train, test):
     iter_test = dataio.OneEpochIterator([test["user"],
                                          test["item"],
                                          test["rate"]],
-                                        batch_size=BATCH_SIZE)
+                                        batch_size=-1)
 
     user_batch = tf.placeholder(tf.int32, shape=[None], name="id_user")
     item_batch = tf.placeholder(tf.int32, shape=[None], name="id_item")
