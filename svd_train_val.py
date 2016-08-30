@@ -77,7 +77,7 @@ def svd(train, test):
                                                        end - start))
                 start = end
 
-        output_graph_def = tf.python.client.graph_util.extract_sub_graph(sess.graph.as_graph_def(),
+        output_graph_def = tf.python.framework.graph_util.extract_sub_graph(sess.graph.as_graph_def(),
                                                                          ["svd_inference", "svd_regularizer"])
         tf.train.SummaryWriter(logdir="/tmp/svd", graph_def=output_graph_def)
 
