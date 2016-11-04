@@ -23,10 +23,10 @@ def inference_svd(user_batch, item_batch, user_num, item_num, dim=5, device="/cp
     return infer, regularizer
 
 
-def optimiaztion(infer, regularizer, rate_batch, learning_rate=0.1, reg=0.1, device="/cpu:0"):
+def optimiaztion(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.1, device="/cpu:0"):
     with tf.device(device):
         cost_l2 = tf.nn.l2_loss(tf.sub(infer, rate_batch))
         panelty = tf.constant(reg, dtype=tf.float32, shape=[], name="l2")
         cost = tf.add(cost_l2, tf.mul(regularizer, panelty))
-        train_op = tf.train.FtrlOptimizer(learning_rate).minimize(cost)
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     return cost, train_op

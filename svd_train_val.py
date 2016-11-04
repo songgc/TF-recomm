@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.framework import graph_util
 import dataio
 import numpy as np
 from collections import deque
@@ -49,7 +50,7 @@ def svd(train, test):
 
     infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
                                            device=DEVICE)
-    _, train_op = ops.optimiaztion(infer, regularizer, rate_batch, learning_rate=0.15, reg=0.05, device=DEVICE)
+    _, train_op = ops.optimiaztion(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.05, device=DEVICE)
 
     init_op = tf.initialize_all_variables()
     with tf.Session() as sess:
@@ -77,7 +78,7 @@ def svd(train, test):
                                                        end - start))
                 start = end
 
-        output_graph_def = tf.python.framework.graph_util.extract_sub_graph(sess.graph.as_graph_def(),
+        output_graph_def = graph_util.extract_sub_graph(sess.graph.as_graph_def(),
                                                                          ["svd_inference", "svd_regularizer"])
         tf.train.SummaryWriter(logdir="/tmp/svd", graph_def=output_graph_def)
 
@@ -85,3 +86,4 @@ def svd(train, test):
 if __name__ == '__main__':
     df_train, df_test = get_data()
     svd(df_train, df_test)
+    print("Done!")

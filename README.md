@@ -32,7 +32,7 @@ The objective is to minimize
 ```
 \sum_{u, i} |y_pred[u, i] - y_true[u, i]|^2 + \lambda(|embedding_user[u]|^2 + |embedding_item[i]|^2)
 ```
-The above can be directly written by Tensorflow DSL as the [operations](https://github.com/songgc/TF-recomm/blob/master/ops.py). [FTRL-Proximal](http://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/41159.pdf) is used for the optimizer. The TF graph would be like
+The above can be directly written by Tensorflow DSL as the [operations](https://github.com/songgc/TF-recomm/blob/master/ops.py). The Adam algorithm is used for the optimizer. The TF graph would be like
 ![](doc/graph_svd.png)
 
 #### Run
