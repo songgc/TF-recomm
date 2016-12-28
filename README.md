@@ -9,6 +9,10 @@ Factorization models are very popular in recommendation systems because they can
 
 [Tensorflow](https://www.tensorflow.org/) is a general computation framework using data flow graphs although deep learning is the most important application of it. With Tensorflow, derivative calculation can be done by auto differentiation, which means that you only need to write the inference part. It provides variant fancy SGD learning algorithms, CPU/GPU acceleration, and distributed training in a computer cluster. Since Tensorflow has some embedding modules for word2vc-like application, it is supposed to be a good platform for factorization models as well, even in production. Please note that embedding in deep learning is equivalent to factorization in shallow learning! 
 
+### Requirements
+* Tensorflow >= r0.12 (Since Tensorflow is changing high-level APIs frequently, please check its version if errors happen.)
+* Numpy
+* Pandas
 
 ### Data set
 [MovieLens](http://grouplens.org/datasets/movielens/) 1M data set is used. It looks as follows. The columns are user ID, item ID, rating, and timestamp
