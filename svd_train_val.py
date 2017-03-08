@@ -1,4 +1,5 @@
 import tensorflow as tf
+from pipeline import shuffleInputPipeline
 import dataio
 import numpy as np
 from collections import deque
@@ -29,6 +30,60 @@ def get_data():
     df_test = df[split_index:].reset_index(drop=True)
     return df_train, df_test
 
+def svd_with_pipe(samples_per_batch):
+    trainfilequeue = tf.train.string_input_producer(
+        ["/tmp/movielens/ml-1m/ratings.dat"], num_epochs=None, shuffle=False)
+    testfilequeue =  tf.train.string_input_producer(
+        ["/tmp/movielens/ml-1m/ratings.dat"], num_epochs=None, shuffle=False)
+    reader = tf.TextLineReader()
+    user_batch,item_batch, rate_batch = shuffleInputPipeline(trainfilequeue,reader, BATCH_SIZE, 10)
+    testuser_batch,testitem_batch, testrate_batch = shuffleInputPipeline(testfilequeue,reader, BATCH_SIZE, 10)
+
+    infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
+                                           device=DEVICE)
+    global_step = tf.contrib.framework.get_or_create_global_step()
+    _, train_op = ops.optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.05, device=DEVICE)
+
+
+    init_op = tf.global_variables_initializer()
+    sess = tf.Session()
+    sess.run(init_op)
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+    testusers, testitems,testrates = sess.run([testuser_batch,testitem_batch,testrate_batch])
+    errors = deque(maxlen=samples_per_batch)
+    print("{} {} {} {}".format("epoch", "train_error", "val_error", "elapsed_time"))
+    try:
+        for i in range(EPOCH_MAX * samples_per_batch):
+            start = time.time()
+            users, items, rates  = sess.run([user_batch,item_batch,rate_batch])
+            _, pred_batch = sess.run([train_op, infer],feed_dict={user_batch: users,
+                                                                   item_batch: items,
+                                                                   rate_batch: rates})
+            pred_batch = clip(pred_batch)
+            errors.append(np.power(pred_batch - rates, 2))
+            if i % samples_per_batch == 0:
+                train_err = np.sqrt(np.mean(errors))
+                test_err2 = np.array([])
+
+                pred_batch = sess.run(infer,feed_dict={
+                        user_batch: testusers,
+                        item_batch: testitems,
+                    })
+                pred_batch = clip(pred_batch)
+                test_err2 = np.append(test_err2, np.power(pred_batch - testrates, 2))
+                end = time.time()
+                print("{:3d} {:f} {:f} {:f}(s)".format(i // samples_per_batch, train_err, np.sqrt(np.mean(test_err2)),
+                                                   end - start))
+                start = end
+
+
+    except tf.errors.OutOfRangeError:
+        print ('Done Training')
+    finally :
+        coord.request_stop()
+    coord.join(threads)
+    sess.close()
 
 def svd(train, test):
     samples_per_batch = len(train) // BATCH_SIZE
@@ -84,4 +139,6 @@ def svd(train, test):
 
 if __name__ == '__main__':
     df_train, df_test = get_data()
-    svd(df_train, df_test)
+    # svd(df_train, df_test)
+    svd_with_pipe(100)
+    print("Done!")
