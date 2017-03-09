@@ -1,10 +1,13 @@
-import tensorflow as tf
 from pipeline import shuffleInputPipeline
-import dataio
-import numpy as np
-from collections import deque
-from six import next
 import time
+from collections import deque
+
+import numpy as np
+import tensorflow as tf
+from six import next
+from tensorflow.core.framework import summary_pb2
+
+import dataio
 import ops
 
 np.random.seed(13575)
@@ -19,6 +22,10 @@ DEVICE = "/cpu:0"
 
 def clip(x):
     return np.clip(x, 1.0, 5.0)
+
+
+def make_scalar_summary(name, val):
+    return summary_pb2.Summary(value=[summary_pb2.Summary.Value(tag=name, simple_value=val)])
 
 
 def get_data():
@@ -104,11 +111,13 @@ def svd(train, test):
 
     infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
                                            device=DEVICE)
-    _, train_op = ops.optimiaztion(infer, regularizer, rate_batch, learning_rate=0.15, reg=0.05, device=DEVICE)
+    global_step = tf.contrib.framework.get_or_create_global_step()
+    _, train_op = ops.optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.05, device=DEVICE)
 
-    init_op = tf.initialize_all_variables()
+    init_op = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init_op)
+        summary_writer = tf.summary.FileWriter(logdir="/tmp/svd/log", graph=sess.graph)
         print("{} {} {} {}".format("epoch", "train_error", "val_error", "elapsed_time"))
         errors = deque(maxlen=samples_per_batch)
         start = time.time()
@@ -128,13 +137,14 @@ def svd(train, test):
                     pred_batch = clip(pred_batch)
                     test_err2 = np.append(test_err2, np.power(pred_batch - rates, 2))
                 end = time.time()
-                print("{:3d} {:f} {:f} {:f}(s)".format(i // samples_per_batch, train_err, np.sqrt(np.mean(test_err2)),
+                test_err = np.sqrt(np.mean(test_err2))
+                print("{:3d} {:f} {:f} {:f}(s)".format(i // samples_per_batch, train_err, test_err,
                                                        end - start))
+                train_err_summary = make_scalar_summary("training_error", train_err)
+                test_err_summary = make_scalar_summary("test_error", test_err)
+                summary_writer.add_summary(train_err_summary, i)
+                summary_writer.add_summary(test_err_summary, i)
                 start = end
-
-        output_graph_def = tf.python.framework.graph_util.extract_sub_graph(sess.graph.as_graph_def(),
-                                                                         ["svd_inference", "svd_regularizer"])
-        tf.train.SummaryWriter(logdir="/tmp/svd", graph_def=output_graph_def)
 
 
 if __name__ == '__main__':

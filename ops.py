@@ -15,7 +15,7 @@ def inference_svd(user_batch, item_batch, user_num, item_num, dim=5, device="/cp
         embd_user = tf.nn.embedding_lookup(w_user, user_batch, name="embedding_user")
         embd_item = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_item")
     with tf.device(device):
-        infer = tf.reduce_sum(tf.mul(embd_user, embd_item), 1)
+        infer = tf.reduce_sum(tf.multiply(embd_user, embd_item), 1)
         infer = tf.add(infer, bias_global)
         infer = tf.add(infer, bias_user)
         infer = tf.add(infer, bias_item, name="svd_inference")
@@ -23,10 +23,12 @@ def inference_svd(user_batch, item_batch, user_num, item_num, dim=5, device="/cp
     return infer, regularizer
 
 
-def optimiaztion(infer, regularizer, rate_batch, learning_rate=0.1, reg=0.1, device="/cpu:0"):
+def optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.1, device="/cpu:0"):
+    global_step = tf.train.get_global_step()
+    assert global_step is not None
     with tf.device(device):
-        cost_l2 = tf.nn.l2_loss(tf.sub(infer, rate_batch))
-        panelty = tf.constant(reg, dtype=tf.float32, shape=[], name="l2")
-        cost = tf.add(cost_l2, tf.mul(regularizer, panelty))
-        train_op = tf.train.FtrlOptimizer(learning_rate).minimize(cost)
+        cost_l2 = tf.nn.l2_loss(tf.subtract(infer, rate_batch))
+        penalty = tf.constant(reg, dtype=tf.float32, shape=[], name="l2")
+        cost = tf.add(cost_l2, tf.multiply(regularizer, penalty))
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(cost, global_step=global_step)
     return cost, train_op
