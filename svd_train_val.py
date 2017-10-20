@@ -108,9 +108,11 @@ def svd(train, test):
     user_batch = tf.placeholder(tf.int32, shape=[None], name="id_user")
     item_batch = tf.placeholder(tf.int32, shape=[None], name="id_item")
     rate_batch = tf.placeholder(tf.float32, shape=[None])
+    rmat_batch = tf.placeholder(tf.float32, shape=[BATCH_SIZE,BATCH_SIZE],name="rmat")
 
-    infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
-                                           device=DEVICE)
+    # infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
+    #                                        device=DEVICE)
+    infer, regularizer = ops.inference_svdplusplus(user_batch,item_batch,rmat_batch,user_num=USER_NUM,item_num=ITEM_NUM,batch_size=BATCH_SIZE,dim=DIM)
     global_step = tf.contrib.framework.get_or_create_global_step()
     _, train_op = ops.optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.05, device=DEVICE)
 
@@ -123,9 +125,14 @@ def svd(train, test):
         start = time.time()
         for i in range(EPOCH_MAX * samples_per_batch):
             users, items, rates = next(iter_train)
+            print("{}".format(users))
+            rmat = np.zeros([USER_NUM,ITEM_NUM],dtype=np.float32)
+            rmat[users,items]=float(1.0)
+
             _, pred_batch = sess.run([train_op, infer], feed_dict={user_batch: users,
                                                                    item_batch: items,
-                                                                   rate_batch: rates})
+                                                                   rate_batch: rates,
+                                                                   rmat_batch: rmat})
             pred_batch = clip(pred_batch)
             errors.append(np.power(pred_batch - rates, 2))
             if i % samples_per_batch == 0:
@@ -149,6 +156,6 @@ def svd(train, test):
 
 if __name__ == '__main__':
     df_train, df_test = get_data()
-    # svd(df_train, df_test)
-    svd_with_pipe(100)
+    svd(df_train, df_test)
+    #svd_with_pipe(100)
     print("Done!")

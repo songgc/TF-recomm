@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 from numpy import float32,int32,float64
-
 def parseRating(line):
     """
     Parses a rating record in MovieLens format userId::movieId::rating::timestamp .
@@ -57,11 +56,23 @@ def shuffleInputPipeline(filename_queue, reader, batch_size, read_threads, num_e
     userid.set_shape([])
     itemid.set_shape([])
     rating.set_shape([])
-    min_after_dequeue = 1000
+    min_after_dequeue = batch_size*10
     capacity = min_after_dequeue + 3 * batch_size
     user_batch,item_batch,rate_batch= tf.train.shuffle_batch(
-        [userid, itemid, rating], batch_size=batch_size, capacity=capacity,
+        [userid, itemid, rating], batch_size=batch_size, capacity=capacity,num_threads=read_threads,
         min_after_dequeue=min_after_dequeue)
     return user_batch, item_batch,rate_batch
 
+
+def readSparse(filename_queue, reader, batch_size, read_threads, num_epochs=None):
+    userid, itemid, rating= ratinglabel(filename_queue,reader)
+    userid.set_shape([])
+    itemid.set_shape([])
+    rating.set_shape([])
+    min_after_dequeue = batch_size*10
+    capacity = min_after_dequeue + 3 * batch_size
+    user_batch,item_batch,rate_batch= tf.train.shuffle_batch(
+        [userid, itemid, rating], batch_size=batch_size, capacity=capacity,num_threads=read_threads,
+        min_after_dequeue=min_after_dequeue)
+    return user_batch, item_batch,rate_batch
 
