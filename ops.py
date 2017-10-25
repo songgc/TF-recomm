@@ -43,40 +43,42 @@ def inference_svdplusplus(user_batch,item_batch,rmat_batch,user_num,item_num,bat
 
         i = tf.constant(0)
         cond = lambda i,_: tf.less(i, batch_size)
-        sum_y = tf.TensorArray(dtype=tf.float32, size=batch_size)
+        sum_y = tf.Variable([])
         embd_y    = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_y")
         # transpose from [item_num, dim] to [dim, item_num]
         print("embd_y:{}".format(embd_y))
         embd_y = tf.transpose(embd_y)
         def sumy(i,sum):
-            i = tf.add(i,1)
             #mask shape is [dim, item_num]
             mask = tf.tile(tf.reshape(tf.gather(rmat_batch, tf.gather(user_batch,i)), (1, -1)), (dim, 1))
+            mask= tf.transpose(tf.nn.embedding_lookup(tf.transpose(mask), item_batch))
             print("mask:{}".format(mask))
-            mat = tf.reduce_sum(tf.multiply(embd_y,mask),axis=1)
+            mat = tf.reshape(tf.reduce_sum(tf.matmul(embd_y,mask,transpose_a=False,transpose_b=True),axis=1),[-1])
             print("mat:{}".format(mat))
-            sum.write(i,mat)
+            sum=tf.concat([sum,mat],axis=0)
+            i = tf.add(i,1)
             return i, sum
 
         #sum shape would be finally be [user_num,dim]
 
-        idx,sum_y= tf.while_loop(cond, sumy, [i,sum_y])
-        print(sum_y)
-        sum_y=sum_y.pack()
-        print(sum_y)
+        idx,sum_y= tf.while_loop(cond, sumy, [i,sum_y],shape_invariants=[i.get_shape(), tf.TensorShape([None])])
+        print("sum_y:{}".format(sum_y))
+        sum_y = tf.reshape(sum_y,shape=[batch_size,dim])
         embd_user = tf.nn.embedding_lookup(w_user, user_batch, name="embedding_user")
         embd_item = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_item")
     with tf.device(device):
-        #infer shape is [item_num
+        print("sum_y:{}".format(sum_y))
+        print("embd_user:{}".format(embd_user))
+        embd_user = tf.add(embd_user,sum_y)
+        print("embd_user:{}".format(embd_user))
         infer = tf.reduce_sum(tf.multiply(embd_user, embd_item), 1)
+        print("infer:{}".format(infer))
         infer = tf.add(infer, bias_global)
         infer = tf.add(infer, bias_user)
         infer = tf.add(infer, bias_item, name="svd_inference")
         #infer need to add the  sum(y)*|rating(u)|^(-1/2)
         #embd_item shape is [item_num,dim] sum_y = [user_num,dim],final shap would be [user_num,item_num]
-        r_embedd=tf.transpose(tf.matmul(embd_item,sum_y,transpose_a=False,transpose_b=True))
-        infer = tf.add(infer, tf.reduce_sum(r_embedd,1))
-
+        print("infer:{}".format(infer))
         regularizer = tf.add(tf.nn.l2_loss(embd_user), tf.nn.l2_loss(embd_item), name="svd_regularizer")
     return infer, regularizer
 
@@ -87,5 +89,6 @@ def optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.1, d
         cost_l2 = tf.nn.l2_loss(tf.subtract(infer, rate_batch))
         penalty = tf.constant(reg, dtype=tf.float32, shape=[], name="l2")
         cost = tf.add(cost_l2, tf.multiply(regularizer, penalty))
+        print("cost:{}".format(cost))
         train_op = tf.train.AdamOptimizer(learning_rate).minimize(cost, global_step=global_step)
     return cost, train_op

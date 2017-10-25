@@ -4,7 +4,6 @@ from collections import deque
 
 import numpy as np
 import tensorflow as tf
-from six import next
 from tensorflow.core.framework import summary_pb2
 
 import dataio
@@ -108,7 +107,7 @@ def svd(train, test):
     user_batch = tf.placeholder(tf.int32, shape=[None], name="id_user")
     item_batch = tf.placeholder(tf.int32, shape=[None], name="id_item")
     rate_batch = tf.placeholder(tf.float32, shape=[None])
-    rmat_batch = tf.placeholder(tf.float32, shape=[BATCH_SIZE,BATCH_SIZE],name="rmat")
+    rmat_batch = tf.placeholder(tf.float32, shape=[USER_NUM,ITEM_NUM],name="rmat")
 
     # infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
     #                                        device=DEVICE)
@@ -125,9 +124,11 @@ def svd(train, test):
         start = time.time()
         for i in range(EPOCH_MAX * samples_per_batch):
             users, items, rates = next(iter_train)
-            print("{}".format(users))
             rmat = np.zeros([USER_NUM,ITEM_NUM],dtype=np.float32)
             rmat[users,items]=float(1.0)
+            # rmat=rmat[np.logical_or.reduce([rmat[:, 1]==x for x in users])]
+            # rmat=rmat[np.logical_or.reduce([rmat[1, :]==x for x in items])]
+            print(rmat.shape)
 
             _, pred_batch = sess.run([train_op, infer], feed_dict={user_batch: users,
                                                                    item_batch: items,
