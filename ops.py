@@ -80,7 +80,7 @@ def inference_svdplusplus(user_batch,item_batch,rmat_batch,user_num,item_num,bat
         infer = tf.add(infer, bias_item, name="svd_inference")
         #embd_item shape is [item_num,dim] sum_y = [user_num,dim],final shap would be [user_num,item_num]
         print("infer:{}".format(infer))
-        regularizer = tf.add(tf.nn.l2_loss(embd_user), tf.nn.l2_loss(embd_item), name="svd_regularizer")
+        regularizer = tf.add(tf.nn.l2_loss(sum_y), tf.add(tf.nn.l2_loss(embd_user), tf.nn.l2_loss(embd_item)), name="svd_regularizer")
     return infer, regularizer
 
 def optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.1, device="/cpu:0"):
