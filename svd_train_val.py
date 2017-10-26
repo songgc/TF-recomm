@@ -11,7 +11,7 @@ import ops
 
 np.random.seed(13575)
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 100
 USER_NUM = 6040
 ITEM_NUM = 3952
 DIM = 15
@@ -91,23 +91,24 @@ def svd_with_pipe(samples_per_batch):
     coord.join(threads)
     sess.close()
 
-def svd(train, test):
-    samples_per_batch = len(train) // BATCH_SIZE
+def svdplusplus(train, test):
+    samples_per_batch = BATCH_SIZE
 
     iter_train = dataio.ShuffleIterator([train["user"],
                                          train["item"],
                                          train["rate"]],
                                         batch_size=BATCH_SIZE)
 
-    iter_test = dataio.OneEpochIterator([test["user"],
+    iter_test = dataio.ShuffleIterator([test["user"],
                                          test["item"],
                                          test["rate"]],
-                                        batch_size=-1)
+                                        batch_size=BATCH_SIZE)
 
     user_batch = tf.placeholder(tf.int32, shape=[None], name="id_user")
     item_batch = tf.placeholder(tf.int32, shape=[None], name="id_item")
     rate_batch = tf.placeholder(tf.float32, shape=[None])
     rmat_batch = tf.placeholder(tf.float32, shape=[USER_NUM,ITEM_NUM],name="rmat")
+    onecount_sqrt_batch = tf.placeholder(tf.float32,shape=[USER_NUM],name = "onecount_sqrt")
 
     # infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
     #                                        device=DEVICE)
@@ -118,7 +119,7 @@ def svd(train, test):
     init_op = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init_op)
-        summary_writer = tf.summary.FileWriter(logdir="/tmp/svd/log", graph=sess.graph)
+        summary_writer = tf.summary.FileWriter(logdir="log", graph=sess.graph)
         print("{} {} {} {}".format("epoch", "train_error", "val_error", "elapsed_time"))
         errors = deque(maxlen=samples_per_batch)
         start = time.time()
@@ -126,24 +127,27 @@ def svd(train, test):
             users, items, rates = next(iter_train)
             rmat = np.zeros([USER_NUM,ITEM_NUM],dtype=np.float32)
             rmat[users,items]=float(1.0)
-            # rmat=rmat[np.logical_or.reduce([rmat[:, 1]==x for x in users])]
-            # rmat=rmat[np.logical_or.reduce([rmat[1, :]==x for x in items])]
-            print(rmat.shape)
-
             _, pred_batch = sess.run([train_op, infer], feed_dict={user_batch: users,
                                                                    item_batch: items,
                                                                    rate_batch: rates,
-                                                                   rmat_batch: rmat})
+                                                                   rmat_batch: rmat,
+                                                                   })
             pred_batch = clip(pred_batch)
             errors.append(np.power(pred_batch - rates, 2))
+            # print("i:{},errors:{}".format(i,np.sqrt(np.mean(errors))))
             if i % samples_per_batch == 0:
                 train_err = np.sqrt(np.mean(errors))
                 test_err2 = np.array([])
-                for users, items, rates in iter_test:
-                    pred_batch = sess.run(infer, feed_dict={user_batch: users,
-                                                            item_batch: items})
-                    pred_batch = clip(pred_batch)
-                    test_err2 = np.append(test_err2, np.power(pred_batch - rates, 2))
+                users, items, rates =next(iter_test)
+                rmat = np.zeros([USER_NUM, ITEM_NUM], dtype=np.float32)
+                rmat[users, items] = float(1.0)
+                # print("i:{},users:{},items:{}".format(i,users,items))
+                pred_batch = sess.run(infer, feed_dict={user_batch: users,
+                                                        item_batch: items,
+                                                        rmat_batch: rmat,
+                                                        })
+                pred_batch = clip(pred_batch)
+                test_err2 = np.append(test_err2, np.power(pred_batch - rates, 2))
                 end = time.time()
                 test_err = np.sqrt(np.mean(test_err2))
                 print("{:3d} {:f} {:f} {:f}(s)".format(i // samples_per_batch, train_err, test_err,
@@ -157,6 +161,7 @@ def svd(train, test):
 
 if __name__ == '__main__':
     df_train, df_test = get_data()
-    svd(df_train, df_test)
+    # print(len(df_train))
+    svdplusplus(df_train, df_test)
     #svd_with_pipe(100)
     print("Done!")

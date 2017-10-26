@@ -42,41 +42,42 @@ def inference_svdplusplus(user_batch,item_batch,rmat_batch,user_num,item_num,bat
                                  initializer=tf.truncated_normal_initializer(stddev=0.02))
 
         i = tf.constant(0)
-        cond = lambda i,_: tf.less(i, batch_size)
-        sum_y = tf.Variable([])
+        cond = lambda i,_: tf.logical_and(tf.less(i, batch_size),tf.less(i,tf.size(user_batch)))
+        # sum_y = tf.Variable([])
+        sum_y = tf.TensorArray(tf.float32,size=batch_size)
+        nonzero_sqrt = tf.TensorArray(tf.float32, size=batch_size)
         embd_y    = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_y")
         # transpose from [item_num, dim] to [dim, item_num]
         print("embd_y:{}".format(embd_y))
         embd_y = tf.transpose(embd_y)
         def sumy(i,sum):
             #mask shape is [dim, item_num]
-            mask = tf.tile(tf.reshape(tf.gather(rmat_batch, tf.gather(user_batch,i)), (1, -1)), (dim, 1))
+            umask  =tf.nn.embedding_lookup(rmat_batch,user_batch) #get all user rows
+            mask = tf.tile(tf.reshape(tf.gather(umask,i), (1, -1)), (dim, 1))
             mask= tf.transpose(tf.nn.embedding_lookup(tf.transpose(mask), item_batch))
             print("mask:{}".format(mask))
-            mat = tf.reshape(tf.reduce_sum(tf.matmul(embd_y,mask,transpose_a=False,transpose_b=True),axis=1),[-1])
+            mat = tf.reduce_sum(tf.matmul(embd_y,mask,transpose_a=False,transpose_b=True),axis=1)
+            #sum(y)*|rating(u)|^(-1/2)
+            mat = tf.multiply(mat,tf.pow(tf.add(tf.cast(tf.count_nonzero(tf.gather(mask,0)),tf.float32),tf.constant(0.00001)),-0.5))
             print("mat:{}".format(mat))
-            sum=tf.concat([sum,mat],axis=0)
+            # sum=tf.concat([sum,mat],axis=0)
+            sum=sum.write(i,mat)
             i = tf.add(i,1)
             return i, sum
 
         #sum shape would be finally be [user_num,dim]
 
-        idx,sum_y= tf.while_loop(cond, sumy, [i,sum_y],shape_invariants=[i.get_shape(), tf.TensorShape([None])])
-        print("sum_y:{}".format(sum_y))
-        sum_y = tf.reshape(sum_y,shape=[batch_size,dim])
+        idx,sum_y= tf.while_loop(cond, sumy, [i,sum_y])#,shape_invariants=[i.get_shape(), tf.TensorShape([None])])
+        sum_y=sum_y.stack()
         embd_user = tf.nn.embedding_lookup(w_user, user_batch, name="embedding_user")
         embd_item = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_item")
     with tf.device(device):
-        print("sum_y:{}".format(sum_y))
-        print("embd_user:{}".format(embd_user))
         embd_user = tf.add(embd_user,sum_y)
-        print("embd_user:{}".format(embd_user))
         infer = tf.reduce_sum(tf.multiply(embd_user, embd_item), 1)
         print("infer:{}".format(infer))
         infer = tf.add(infer, bias_global)
         infer = tf.add(infer, bias_user)
         infer = tf.add(infer, bias_item, name="svd_inference")
-        #infer need to add the  sum(y)*|rating(u)|^(-1/2)
         #embd_item shape is [item_num,dim] sum_y = [user_num,dim],final shap would be [user_num,item_num]
         print("infer:{}".format(infer))
         regularizer = tf.add(tf.nn.l2_loss(embd_user), tf.nn.l2_loss(embd_item), name="svd_regularizer")
