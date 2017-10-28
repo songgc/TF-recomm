@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import pandas as pd
-
+import datetime
 
 def read_process(filname, sep="\t"):
     col_names = ["user", "item", "rate", "st"]
@@ -11,6 +11,8 @@ def read_process(filname, sep="\t"):
     for col in ["user", "item"]:
         df[col] = df[col].astype(np.int32)
     df["rate"] = df["rate"].astype(np.float32)
+    m = datetime.datetime.fromtimestamp(min(df['st']))
+    df['st']=df['st'].apply(lambda x: (datetime.datetime.fromtimestamp(x) - m).days)
     return df
 
 
