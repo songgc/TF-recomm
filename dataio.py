@@ -1,16 +1,18 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import pandas as pd
-
+import datetime
 
 def read_process(filname, sep="\t"):
     col_names = ["user", "item", "rate", "st"]
     df = pd.read_csv(filname, sep=sep, header=None, names=col_names, engine='python')
     df["user"] -= 1
     df["item"] -= 1
-    for col in ("user", "item"):
+    for col in ["user", "item"]:
         df[col] = df[col].astype(np.int32)
     df["rate"] = df["rate"].astype(np.float32)
+    m = datetime.datetime.fromtimestamp(min(df['st']))
+    df['st']=df['st'].apply(lambda x: (datetime.datetime.fromtimestamp(x) - m).days)
     return df
 
 
@@ -23,7 +25,7 @@ class ShuffleIterator(object):
         self.batch_size = batch_size
         self.num_cols = len(self.inputs)
         self.len = len(self.inputs[0])
-        self.inputs = np.transpose(np.vstack([np.array(self.inputs[i]) for i in range(self.num_cols)]))
+        self.inputs = np.transpose(np.vstack([np.array(self.inputs[i],dtype=np.int32) for i in range(self.num_cols)]))
 
     def __len__(self):
         return self.len
