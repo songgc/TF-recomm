@@ -46,14 +46,16 @@ def inference_svdplusplus(user_batch,item_batch,rmat_batch,user_num,item_num,bat
         sum_y = tf.TensorArray(tf.float32,size=batch_size)
         embd_y    = tf.nn.embedding_lookup(w_item, item_batch, name="embedding_y")
         # transpose from [item_num, dim] to [dim, item_num]
-        embd_y = tf.transpose(embd_y)
+
+
         def sumy(i,sum):
             #mask shape is [dim, item_num]
+            #rmat_batch use the explicit feedback. [user_num, item_num] . User has rating on item is marked as 1.
             umask  =tf.nn.embedding_lookup(rmat_batch,user_batch) #get all user rows
-            mask = tf.tile(tf.reshape(tf.gather(umask,i), (1, -1)), (dim, 1))
-            mask= tf.transpose(tf.nn.embedding_lookup(tf.transpose(mask), item_batch))
-            mat = tf.reduce_sum(tf.matmul(embd_y,mask,transpose_a=False,transpose_b=True),axis=1)
-            #sum(y)*|rating(u)|^(-1/2)
+            mask = tf.tile(tf.reshape(tf.gather(umask,i), (1, -1)), (dim, 1)) # select one user and populate its preference to dim dimension.
+            mask= tf.transpose(tf.nn.embedding_lookup(tf.transpose(mask), item_batch)) #[dim, item_size] each column are all filled with 1 if user rated that itm.
+            mat = tf.reduce_sum(tf.matmul(embd_y,mask,transpose_a=True,transpose_b=True),axis=1)  #  [dim * item]x[item * dim] reduce_sum([dim * dim])  = [dim * 1]
+            #sum(y)*|rating(u)|^(-1/2) |N(u)^(-1/2)*sum(y)
             mat = tf.multiply(mat,tf.pow(tf.add(tf.cast(tf.count_nonzero(tf.gather(mask,0)),tf.float32),tf.constant(0.00001)),tf.constant(-0.5)))
             sum=sum.write(i,mat)
             i = tf.add(i,1)

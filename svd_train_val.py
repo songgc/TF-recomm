@@ -130,8 +130,12 @@ def svdplusplus(train, test):
         start = time.time()
         for i in range(EPOCH_MAX * samples_per_batch):
             users, items, rates = next(iter_train)
-            rmat = np.zeros([USER_NUM,ITEM_NUM],dtype=np.float32)
-            rmat[users,items]=float(1.0)
+            rvalues = train.values# .pivot(index='user', columns='item', values='rate').values #convert panda dataframe to numpy arrays.
+            rmat = np.zeros((USER_NUM, ITEM_NUM), dtype=float)
+            rows, row_pos = np.unique(rvalues[:, 1], return_inverse=True)
+            cols, col_pos = np.unique(rvalues[:, 2], return_inverse=True)
+            rmat[row_pos, col_pos] = rvalues[:,3]
+            #rmat = rmat[users[:,None], items]
             _, pred_batch = sess.run([train_op, infer], feed_dict={user_batch: users,
                                                                    item_batch: items,
                                                                    rate_batch: rates,
@@ -144,8 +148,6 @@ def svdplusplus(train, test):
                 train_err = np.sqrt(np.mean(errors))
                 test_err2 = np.array([])
                 users, items, rates =next(iter_test)
-                rmat = np.zeros([USER_NUM, ITEM_NUM], dtype=np.float32)
-                rmat[users, items] = float(1.0)
                 # print("i:{},users:{},items:{}".format(i,users,items))
                 pred_batch = sess.run(infer, feed_dict={user_batch: users,
                                                         item_batch: items,
@@ -163,7 +165,7 @@ def svdplusplus(train, test):
                 summary_writer.add_summary(test_err_summary, i)
                 start = end
 
-def timesvdplusplus(train, test,binsize,ut_mean):
+def timesvdplusplus(train, test,binsize,ut_mean,maxtime):
     samples_per_batch = BATCH_SIZE
 
     iter_train = dataio.ShuffleIterator([train["user"],
@@ -240,9 +242,9 @@ def timesvdplusplus(train, test,binsize,ut_mean):
 
 if __name__ == '__main__':
     df_train, df_test,maxtime,ut_mean = get_data()
-    # print(len(df_train))
+    print(df_train.shape)
     binsize = maxtime/BIN_NUMBER +1
     svdplusplus(df_train, df_test)
     #svd_with_pipe(100)
-    # timesvdplusplus(df_train,df_test,binsize,ut_mean)
+    timesvdplusplus(df_train,df_test,binsize,ut_mean,maxtime)
     print("Done!")
